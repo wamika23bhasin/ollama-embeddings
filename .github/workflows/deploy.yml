@@ -20,13 +20,14 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and push Docker image (AMD64)
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          push: true
-          platforms: linux/amd64
-          tags: ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
+            context: ./CRUD_CT_FE          # Points to your frontend folder
+            file: ./CRUD_CT_FE/Dockerfile  # Points to the exact Dockerfile path
+            push: true
+            tags: |
+              ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
 
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@master
