@@ -73,7 +73,7 @@ function ShowCaseTasks({ onNavigate }) {
         <div className="container">
           <div className="badge badge-primary showcase-tasks__badge">
             <span aria-hidden="true">📋</span>
-            Case Management
+            Case Tasks Page
           </div>
           <h1 className="showcase-tasks__title">
             Case <span className="text-gradient">Tasks</span>
