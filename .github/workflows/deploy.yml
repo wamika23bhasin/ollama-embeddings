@@ -24,6 +24,7 @@ jobs:
           context: ./CRUD_CT_FE
           file: ./CRUD_CT_FE/Dockerfile
           push: true
+          no-cache: true
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
 
