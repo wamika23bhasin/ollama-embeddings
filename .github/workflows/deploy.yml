@@ -47,5 +47,5 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
             docker stop frontend-container || true
             docker rm frontend-container || true
-            docker run -d --name frontend-container -p 80:80 ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
+            docker run -d --name frontend-container -p 8080:80 ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
           EOF
