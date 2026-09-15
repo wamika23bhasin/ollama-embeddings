@@ -27,6 +27,7 @@ jobs:
           no-cache: true
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
+            ${{ secrets.DOCKER_USERNAME }}/frontend-app:${{ github.sha }}
 
       # --- Step 2: Deploy to EC2 via SSH ---
       - name: Deploy to EC2 via SSH
@@ -50,10 +51,10 @@ jobs:
             docker rm frontend-container || true
             
             # 2. Pull the latest image explicitly
-            docker pull ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
+            docker pull ${{ secrets.DOCKER_USERNAME }}/frontend-app:${{ github.sha }}
             
             # 3. Run the new container
-            docker run -d --name frontend-container -p 8080:80 ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
+            docker run -d --name frontend-container -p 8080:80 ${{ secrets.DOCKER_USERNAME }}/frontend-app:${{ github.sha }}
             
             # 4. Clean up unused docker images to save space
             docker image prune -f
