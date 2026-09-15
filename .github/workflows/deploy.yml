@@ -44,8 +44,16 @@ jobs:
           
           ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             echo "Successfully connected to EC2!"
-            docker pull ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
+            # 1. Stop and remove the old container
             docker stop frontend-container || true
             docker rm frontend-container || true
+            
+            # 2. Pull the latest image explicitly
+            docker pull ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
+            
+            # 3. Run the new container
             docker run -d --name frontend-container -p 8080:80 ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
+            
+            # 4. Clean up unused docker images to save space
+            docker image prune -f
           EOF
