@@ -29,14 +29,30 @@ jobs:
             tags: |
               ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
 
-      - name: Deploy to EC2 via SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            docker stop $(docker ps -a -q) || true
-            docker rm $(docker ps -a -q) || true
-            docker pull ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
-            docker run -d -p 80:80 ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
+              - name: Deploy to EC2 via SSH
+              env:
+                SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+                EC2_HOST: ${{ secrets.EC2_HOST }}
+                EC2_USER: ${{ secrets.EC2_USER }}
+              run: |
+                # 1. Create the .ssh directory
+                mkdir -p ~/.ssh
+                chmod 700 ~/.ssh
+                
+                # 2. Write the private key from the GitHub Secret to a file
+                echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+                chmod 600 ~/.ssh/id_rsa
+                
+                # 3. Disable strict host key checking to prevent connection hangs
+                echo "Host *" >> ~/.ssh/config
+                echo "    StrictHostKeyChecking no" >> ~/.ssh/config
+                
+                # 4. Connect to EC2 and run your deployment commands (e.g., pull Docker image & restart)
+                ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+                  echo "Successfully connected to EC2!"
+                  # Add your server deployment commands here, for example:
+                  # docker pull ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
+                  # docker stop frontend-container || true
+                  # docker rm frontend-container || true
+                  # docker run -d --name frontend-container -p 80:80 ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
+                EOF
