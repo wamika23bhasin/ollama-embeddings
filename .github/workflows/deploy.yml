@@ -72,9 +72,6 @@ jobs:
             # Remove the container managed by this workflow
             docker rm -f frontend-container 2>/dev/null || true
 
-            # One-time cleanup of the old container occupying port 80
-            docker rm -f quirky_merkle 2>/dev/null || true
-
             # Start the new frontend on public HTTP port 80
             docker run -d \
               --name frontend-container \
