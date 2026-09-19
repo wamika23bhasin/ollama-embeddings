@@ -2,11 +2,21 @@ name: CI/CD to AWS EC2
 
 on:
   push:
-    branches: [ main ] # Triggers whenever you push to your main/master branch
+    branches:
+      - main
+    paths:
+      - "CRUD_CT_FE/**"
+      - ".github/workflows/deploy.yml"
+
+# Prevent two deployments from running simultaneously
+concurrency:
+  group: frontend-production
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -17,9 +27,9 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # --- Step 1: Build and Push Docker Image ---
+      # Step 1: Build and push Docker image
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./CRUD_CT_FE
           file: ./CRUD_CT_FE/Dockerfile
@@ -29,33 +39,58 @@ jobs:
             ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
             ${{ secrets.DOCKER_USERNAME }}/frontend-app:${{ github.sha }}
 
-      # --- Step 2: Deploy to EC2 via SSH ---
-      - name: Deploy to EC2 via SSH
+      # Step 2: Configure SSH
+      - name: Configure SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          
-          echo "Host *" >> ~/.ssh/config
-          echo "    StrictHostKeyChecking no" >> ~/.ssh/config
-          
-          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            echo "Successfully connected to EC2!"
-            # 1. Stop and remove the old container
-            docker stop frontend-container || true
-            docker rm frontend-container || true
-            
-            # 2. Pull the latest image explicitly
-            docker pull ${{ secrets.DOCKER_USERNAME }}/frontend-app:${{ github.sha }}
-            
-            # 3. Run the new container
-            docker run -d --name frontend-container -p 8080:80 ${{ secrets.DOCKER_USERNAME }}/frontend-app:${{ github.sha }}
-            
-            # 4. Clean up unused docker images to save space
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      # Step 3: Deploy to EC2
+      - name: Deploy to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE="$DOCKER_USERNAME/frontend-app:$IMAGE_TAG"
+
+          ssh "$EC2_USER@$EC2_HOST" "IMAGE='$IMAGE' bash -s" << 'EOF'
+            set -e
+
+            echo "Successfully connected to EC2"
+            echo "Deploying image: $IMAGE"
+
+            # Pull the new image before stopping the existing application
+            docker pull "$IMAGE"
+
+            # Remove the container managed by this workflow
+            docker rm -f frontend-container 2>/dev/null || true
+
+            # One-time cleanup of the old container occupying port 80
+            docker rm -f quirky_merkle 2>/dev/null || true
+
+            # Start the new frontend on public HTTP port 80
+            docker run -d \
+              --name frontend-container \
+              --restart unless-stopped \
+              -p 80:80 \
+              "$IMAGE"
+
+            # Verify that the new container responds
+            sleep 3
+            curl --fail http://localhost/ > /dev/null
+
+            echo "Deployment successful"
+            docker ps \
+              --filter "name=frontend-container" \
+              --format "table {{.Image}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+            # Remove images that are no longer used
             docker image prune -f
           EOF
