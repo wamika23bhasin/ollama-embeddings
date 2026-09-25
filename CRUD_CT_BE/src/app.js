@@ -1,25 +1,31 @@
 import express from "express";
 import pg from "pg";
-import ollama from "ollama";
 import { randomUUID } from "node:crypto";
+import { Ollama } from "ollama";
+
+const ollama = new Ollama({
+  host: process.env.OLLAMA_HOST || "http://localhost:11434"
+});
 
 const MODEL = "qwen3-embedding:0.6b";
 const app = express();
-const PORT = 3000;
 
 app.use(express.json());
 
-app.listen(PORT, () => {
-  console.log("server is running");
+const port = process.env.PORT || 3000;
+
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Server running on port ${port}`);
 });
 
 const { Pool } = pg;
 
 const pool = new Pool({
-  host: "localhost",
-  port: 5432,
-  database: "case_tasks_db",
-  user: "wamika_sagar"
+  host: process.env.DB_HOST || "localhost",
+  port: Number(process.env.DB_PORT || 5432),
+  database: process.env.DB_NAME || "case_tasks_db",
+  user: process.env.DB_USER || "wamika_sagar",
+  password: process.env.DB_PASSWORD || undefined
 });
 
 // Get all Case Tasks
@@ -37,13 +43,13 @@ app.get("/api/v1/casetasks", async(req, res) => {
   // res.send({ success: true, count: caseTasksData.length, data: caseTasksData });
 });
 
-app.get("/api/v1/casetasks/:id", async (req, res) => {
+app.get("/api/v1/casetasks/:number", async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM case_tasks WHERE id = $1",
-      [req.params.id]
+      "SELECT * FROM case_tasks WHERE number = $1",
+      [req.params.number]
     );
-
+    console.log("--",req.params);
     if (result.rows.length === 0) {
       return res.status(404).json({
         message: "Case task not found"
