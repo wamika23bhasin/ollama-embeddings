@@ -28,6 +28,13 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD || undefined
 });
 
+app.get("/api/v1/health", (req, res) => {
+  return res.status(200).json({
+    status: "ok",
+    backendVersion: "v1"
+  });
+});
+
 // Get all Case Tasks
 app.get("/api/v1/casetasks", async(req, res) => {
 
@@ -233,11 +240,11 @@ app.delete("/api/v1/casetasks/:id", async (req, res) => {
 });
 
 // Update a record
-app.put("/api/v1/casetasks/:id", async (req, res) => {
+app.put("/api/v1/casetasks/:number", async (req, res) => {
 try {
   const existingResult = await pool.query(
-    "SELECT * FROM case_tasks WHERE id = $1",
-    [req.params.id]
+    "SELECT * FROM case_tasks WHERE number = $1",
+    [req.params.number]
   );
 
   const existing = existingResult.rows[0];
@@ -362,7 +369,7 @@ try {
          work_notes_list = $11,
          embedding = $12::vector,
          embedding_model = $13
-     WHERE id = $14
+     WHERE number = $14
      RETURNING id, number, issue_summary, status, priority`,
     [
       task.number,
@@ -378,7 +385,7 @@ try {
       JSON.stringify(task.workNotesList ?? []),
       embedding,
       embeddingModel,
-      req.params.id
+      req.params.number
     ]
   );
   
