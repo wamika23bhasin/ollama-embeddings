@@ -175,7 +175,7 @@ function ShowCaseTasks({ onNavigate }) {
                   key={task.id}
                   className="task-card glass-card"
                   style={{ animationDelay: `${i * 0.07}s`, cursor: 'pointer' }}
-                  onClick={() => onNavigate && onNavigate('view-task', { id: task.id })}
+                  onClick={() => onNavigate && onNavigate('view-task', { id: task.number })}
                   role="listitem"
                   aria-label={`Task ${task.id}: ${task.title || task.issueSummary}`}
                 >

@@ -130,7 +130,7 @@ function ViewTask({ taskId, onNavigate }) {
                     color: 'var(--primary-color)',
                     transition: 'transform 0.2s ease, box-shadow 0.2s ease'
                   }}
-                  onClick={() => onNavigate('view-task', { id: task.id })}
+                  onClick={() => onNavigate('view-task', { id: task.number })}
                   onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)' }}
                   onMouseOut={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)' }}
                   title={task.issue_summary}
