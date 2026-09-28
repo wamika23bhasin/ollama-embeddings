@@ -10,9 +10,9 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       }
-    },
-    build: {
-      sourcemap: true, // <-- Ensures source files are traceable in dev tools
     }
+  },
+  build: {
+    sourcemap: true, // <-- Ensures source files are traceable in dev tools
   }
 })
