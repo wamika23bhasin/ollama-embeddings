@@ -6,11 +6,15 @@ on:
       - main
     paths:
       - "CRUD_CT_FE/**"
+      - "CRUD_CT_BE/**"
+      - "db/**"
+      - "compose.yaml"
+      - ".env.example"
       - ".github/workflows/deploy.yml"
 
-# Prevent two deployments from running simultaneously
+# Prevent two production deployments from running simultaneously
 concurrency:
-  group: frontend-production
+  group: application-production
   cancel-in-progress: true
 
 jobs:
@@ -18,28 +22,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      # Step 1: Build and push Docker image
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./CRUD_CT_FE
-          file: ./CRUD_CT_FE/Dockerfile
-          push: true
-          no-cache: true
-          tags: |
-            ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
-            ${{ secrets.DOCKER_USERNAME }}/frontend-app:${{ github.sha }}
-
-      # Step 2: Configure SSH
+      # Configure SSH access to EC2
       - name: Configure SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
@@ -50,44 +33,48 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
 
-      # Step 3: Deploy to EC2
-      - name: Deploy to EC2
+      # Pull the latest code and deploy all Compose services
+      - name: Deploy application to EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          IMAGE_TAG: ${{ github.sha }}
         run: |
-          IMAGE="$DOCKER_USERNAME/frontend-app:$IMAGE_TAG"
-
-          ssh "$EC2_USER@$EC2_HOST" "IMAGE='$IMAGE' bash -s" << 'EOF'
-            set -e
+          ssh "$EC2_USER@$EC2_HOST" 'bash -s' << 'EOF'
+            set -Eeuo pipefail
 
             echo "Successfully connected to EC2"
-            echo "Deploying image: $IMAGE"
 
-            # Pull the new image before stopping the existing application
-            docker pull "$IMAGE"
+            cd ~/ollama-embeddings
 
-            # Remove the container managed by this workflow
+            echo "Pulling latest code"
+            git pull --ff-only origin main
+
+            # Remove the old standalone frontend container, if it exists
             docker rm -f frontend-container 2>/dev/null || true
 
-            # Start the new frontend on public HTTP port 80
-            docker run -d \
-              --name frontend-container \
-              --restart unless-stopped \
-              -p 80:80 \
-              "$IMAGE"
+            echo "Building and starting application"
+            docker compose up -d --build --remove-orphans
 
-            # Verify that the new container responds
-            sleep 3
-            curl --fail http://localhost/ > /dev/null
+            echo "Waiting for application to become available"
 
-            echo "Deployment successful"
-            docker ps \
-              --filter "name=frontend-container" \
-              --format "table {{.Image}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}"
+            for attempt in 1 2 3 4 5 6 7 8 9 10; do
+              if curl --fail --silent \
+                http://localhost/api/v1/casetasks > /dev/null; then
 
-            # Remove images that are no longer used
-            docker image prune -f
+                echo "Deployment successful"
+                docker compose ps
+                docker image prune -f
+                exit 0
+              fi
+
+              echo "Health check attempt $attempt failed; retrying..."
+              sleep 10
+            done
+
+            echo "Deployment health check failed"
+
+            docker compose ps
+            docker compose logs --tail=100 frontend backend db
+
+            exit 1
           EOF
