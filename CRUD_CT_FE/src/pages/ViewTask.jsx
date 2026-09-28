@@ -74,7 +74,7 @@ function ViewTask({ taskId, onNavigate }) {
     }
 
     try {
-      const response = await fetch(`/api/v1/casetasks/${finalForm.id || finalForm.number}`, {
+      const response = await fetch(`/api/v1/casetasks/${finalForm.number}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
