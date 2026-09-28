@@ -31,7 +31,7 @@ const pool = new Pool({
 app.get("/api/v1/health", (req, res) => {
   return res.status(200).json({
     status: "ok",
-    backendVersion: "v1"
+    backendVersion: "v2"
   });
 });
 
